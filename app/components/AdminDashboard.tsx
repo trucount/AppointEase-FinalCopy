@@ -225,7 +225,7 @@ export default function AdminDashboard() {
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <Database className="h-5 w-5" />
-            <span>Supabase Database Status</span>
+            <span>Database Status</span>
           </CardTitle>
           <CardDescription>Database connection and performance</CardDescription>
         </CardHeader>
@@ -234,17 +234,17 @@ export default function AdminDashboard() {
             <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
               <div className="flex items-center space-x-2">
                 <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                <span className="font-medium">Database Status</span>
+                <span className="font-medium">Database plan</span>
               </div>
               <Badge className="bg-green-100 text-green-800 border-green-200">Connected</Badge>
             </div>
             <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
               <strong>Features:</strong>
               <ul className="mt-1 space-y-1">
-                <li>• Real-time data synchronization</li>
-                <li>• Automatic backups</li>
+                <li>• 500 MB database storage</li>
+                <li>• 2 GB bandwidth</li>
                 <li>• Row Level Security (RLS)</li>
-                <li>• PostgreSQL database</li>
+                <li>• Up to 50,000 users</li>
                 <li>• 99.9% uptime guarantee</li>
               </ul>
             </div>
