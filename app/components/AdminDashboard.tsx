@@ -164,15 +164,11 @@ export default function AdminDashboard() {
                 <TrendingUp className="h-5 w-5" />
                 <span>System Overview</span>
               </CardTitle>
-              <CardDescription>Real-time system health and statistics</CardDescription>
+              <CardDescription></CardDescription>
             </div>
             <div className="flex items-center space-x-2">
-              {getHealthBadge()}
-              {getDataStatusBadge()}
-              <Button onClick={refreshStats} disabled={loading} variant="outline" size="sm">
-                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-                Refresh
-              </Button>
+              
+              
             </div>
           </div>
         </CardHeader>
