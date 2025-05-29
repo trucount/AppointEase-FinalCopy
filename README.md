@@ -95,14 +95,6 @@ A modern, responsive appointment booking system built with Next.js 14, featuring
 - Create a new account through the signup form
 - No email required, just username, full name, phone, and password
 
-## 📊 Data Storage
-
-The app uses Pantry.cloud for free data storage with the following endpoints:
-
-- **Users**: `https://getpantry.cloud/apiv1/pantry/dbd4c2ee-734b-410d-b19b-4f7ac0f31344/basket/user`
-- **Appointments**: `https://getpantry.cloud/apiv1/pantry/983b8ccc-3b24-4e7b-bdbb-945616b52dea/basket/data`
-- **Settings**: `https://getpantry.cloud/apiv1/pantry/c955f325-12a6-4c2a-bf7f-8c02c5cc7c8a/basket/other`
-- **Messages**: `https://getpantry.cloud/apiv1/pantry/550a1eb0-98f1-4022-a86b-de8fbb405c40/basket/message`
 
 ## 🎯 Usage
 
@@ -149,32 +141,6 @@ The app is fully responsive and optimized for mobile devices:
 - **XSS Protection**: Built-in Next.js security headers
 - **Data Sanitization**: CSV export handles special characters
 - **Session Management**: Secure local storage handling
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-1. **"Failed to fetch" errors**
-   - Check internet connection
-   - Pantry.cloud service might be temporarily down
-   - App handles these gracefully with fallbacks
-
-2. **Appointments not showing**
-   - Data might be loading, wait a few seconds
-   - Try refreshing the page
-   - Check if you're logged in correctly
-
-3. **Slots not available**
-   - Check if date is within allowed range (up to 3 months)
-   - Verify admin has set working hours
-   - Slots might be booked or during break time
-
-## 📈 Performance
-
-- **Lighthouse Score**: 95+ on all metrics
-- **Bundle Size**: Optimized with Next.js
-- **Loading Time**: < 2 seconds on 3G
-- **Mobile Performance**: Optimized for mobile devices
 
 ## 🤝 Contributing
 
