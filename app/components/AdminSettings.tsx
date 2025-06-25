@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Settings, Save, Clock } from "lucide-react"
 import { getAdminSettings, updateAdminSettings } from "../../lib/supabase"
 import type { AdminSettings as AdminSettingsType } from "../../lib/supabase"
+import { ThemeToggle } from "./ThemeToggle" // Import ThemeToggle
 
 export default function AdminSettings() {
   const [loading, setLoading] = useState(false)
@@ -155,6 +156,21 @@ export default function AdminSettings() {
               <span className="font-medium text-green-600">{settings.slot_duration} minutes</span>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Dark Mode Toggle */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Settings className="h-5 w-5" />
+            <span>Theme Settings</span>
+          </CardTitle>
+          <CardDescription>Adjust the application's appearance</CardDescription>
+        </CardHeader>
+        <CardContent className="flex items-center justify-between">
+          <Label htmlFor="theme-toggle">Dark Mode</Label>
+          <ThemeToggle />
         </CardContent>
       </Card>
     </div>

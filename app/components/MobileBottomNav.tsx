@@ -1,6 +1,6 @@
 "use client"
 
-import { Calendar, User, MessageSquare } from "lucide-react"
+import { Calendar, User, Video } from "lucide-react" // Added Video icon, removed MessageSquare
 
 interface MobileBottomNavProps {
   activeTab: string
@@ -11,7 +11,7 @@ export default function MobileBottomNav({ activeTab, onTabChange }: MobileBottom
   const tabs = [
     { id: "booking", label: "Book", icon: Calendar },
     { id: "appointments", label: "Appointments", icon: User },
-    { id: "messages", label: "Messages", icon: MessageSquare },
+    { id: "meets", label: "Meets", icon: Video }, // Changed from Messages to Meets
   ]
 
   return (

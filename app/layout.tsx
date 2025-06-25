@@ -2,6 +2,8 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
+import { ThemeProvider } from "./components/ThemeProvider" // Import ThemeProvider
+import AutoNotificationRequester from "./components/AutoNotificationRequester" // Import AutoNotificationRequester
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -24,7 +26,7 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
   },
-    generator: 'v0.dev'
+  generator: "v0.dev",
 }
 
 export default function RootLayout({
@@ -33,7 +35,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      {/* suppressHydrationWarning for next-themes */}
       <head>
         <link rel="icon" href="/favicon.ico" />
         <meta name="theme-color" content="#2563eb" />
@@ -42,12 +45,15 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="AppointEase" />
         <meta name="mobile-web-app-capable" content="yes" />
         <link rel="apple-touch-icon" href="/icon-192x192.png" />
-        <link rel="manifest" href="/manifest.json" />
+        {/* Removed manifest link as service worker is not used for notifications */}
       </head>
       <body className={`${inter.className} overflow-x-hidden`}>
-        <div id="root" className="min-h-screen">
-          {children}
-        </div>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem storageKey="appointease-theme">
+          <AutoNotificationRequester /> {/* Render the notification requester */}
+          <div id="root" className="min-h-screen">
+            {children}
+          </div>
+        </ThemeProvider>
       </body>
     </html>
   )

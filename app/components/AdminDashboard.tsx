@@ -4,8 +4,9 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Calendar, RefreshCw, TrendingUp, AlertTriangle, Database } from "lucide-react"
-import { getAppointments, getUsers, supabase } from "../../lib/supabase"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Calendar, RefreshCw, TrendingUp, Users, Clock, Video, BarChart3, PieChart } from "lucide-react"
+import { getAppointments, getUsers, getAllMeetings, supabase } from "../../lib/supabase"
 import type { User } from "../../lib/supabase"
 
 export default function AdminDashboard() {
@@ -14,15 +15,18 @@ export default function AdminDashboard() {
     pendingAppointments: 0,
     approvedAppointments: 0,
     completedAppointments: 0,
+    rejectedAppointments: 0,
     totalUsers: 0,
+    totalMeetings: 0,
     todayAppointments: 0,
     thisWeekAppointments: 0,
-    unreadMessages: 0,
+    thisMonthAppointments: 0,
+    upcomingMeetings: 0,
+    completedMeetings: 0,
   })
   const [loading, setLoading] = useState(false)
-  const [systemHealth, setSystemHealth] = useState<"healthy" | "warning" | "critical">("healthy")
   const [error, setError] = useState<string | null>(null)
-  const [dataStatus, setDataStatus] = useState<"loading" | "online" | "error">("loading")
+  const [timeFilter, setTimeFilter] = useState("week")
 
   useEffect(() => {
     loadStats()
@@ -35,47 +39,65 @@ export default function AdminDashboard() {
       })
       .subscribe()
 
-    const messagesSubscription = supabase
-      .channel("admin_messages")
-      .on("postgres_changes", { event: "*", schema: "public", table: "messages" }, () => {
+    const meetingsSubscription = supabase
+      .channel("admin_meetings")
+      .on("postgres_changes", { event: "*", schema: "public", table: "meetings" }, () => {
         loadStats()
       })
       .subscribe()
 
     return () => {
       appointmentsSubscription.unsubscribe()
-      messagesSubscription.unsubscribe()
+      meetingsSubscription.unsubscribe()
     }
-  }, [])
+  }, [timeFilter])
 
   const loadStats = async () => {
     try {
       setError(null)
-      setDataStatus("loading")
 
-      // Load appointments with user data
+      // Load data
       const appointments = await getAppointments()
       const users = await getUsers()
+      const meetings = await getAllMeetings()
       const regularUsers = users.filter((user: User) => user.role === "user")
-
-      // Load messages
-      const { data: messages } = await supabase.from("messages").select("*").order("created_at", { ascending: true })
 
       // Calculate date-based stats
       const today = new Date().toISOString().split("T")[0]
+      const now = new Date()
+
+      // Time periods
       const oneWeekAgo = new Date()
       oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
 
+      const oneMonthAgo = new Date()
+      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1)
+
+      // Appointment stats
       const todayAppointments = appointments.filter((apt: any) => apt.appointment_date === today)
       const thisWeekAppointments = appointments.filter((apt: any) => {
         const aptDate = new Date(apt.created_at)
         return aptDate >= oneWeekAgo
       })
+      const thisMonthAppointments = appointments.filter((apt: any) => {
+        const aptDate = new Date(apt.created_at)
+        return aptDate >= oneMonthAgo
+      })
 
-      const unreadMessages = (messages || []).filter((msg: any) => msg.receiver_id === "admin" && !msg.seen_at)
       const pendingAppointments = appointments.filter((apt: any) => apt.status === "pending")
       const approvedAppointments = appointments.filter((apt: any) => apt.status === "approved")
       const completedAppointments = appointments.filter((apt: any) => apt.status === "completed")
+      const rejectedAppointments = appointments.filter((apt: any) => apt.status === "rejected")
+
+      // Meeting stats
+      const upcomingMeetings = meetings.filter((meeting: any) => {
+        const meetingDateTime = new Date(`${meeting.meeting_date} ${meeting.start_time}`)
+        return meetingDateTime > now
+      })
+      const completedMeetings = meetings.filter((meeting: any) => {
+        const meetingDateTime = new Date(`${meeting.meeting_date} ${meeting.start_time}`)
+        return meetingDateTime <= now
+      })
 
       // Update stats
       const newStats = {
@@ -83,29 +105,20 @@ export default function AdminDashboard() {
         pendingAppointments: pendingAppointments.length,
         approvedAppointments: approvedAppointments.length,
         completedAppointments: completedAppointments.length,
+        rejectedAppointments: rejectedAppointments.length,
         totalUsers: regularUsers.length,
+        totalMeetings: meetings.length,
         todayAppointments: todayAppointments.length,
         thisWeekAppointments: thisWeekAppointments.length,
-        unreadMessages: unreadMessages.length,
+        thisMonthAppointments: thisMonthAppointments.length,
+        upcomingMeetings: upcomingMeetings.length,
+        completedMeetings: completedMeetings.length,
       }
 
       setStats(newStats)
-
-      // Determine system health
-      const pendingCount = pendingAppointments.length
-      if (pendingCount > 10) {
-        setSystemHealth("critical")
-      } else if (pendingCount > 5 || unreadMessages.length > 10) {
-        setSystemHealth("warning")
-      } else {
-        setSystemHealth("healthy")
-      }
-
-      setDataStatus("online")
     } catch (error) {
       console.error("Error loading stats:", error)
       setError("Failed to load dashboard data")
-      setDataStatus("error")
     }
   }
 
@@ -115,174 +128,264 @@ export default function AdminDashboard() {
     setLoading(false)
   }
 
-  const getHealthBadge = () => {
-    switch (systemHealth) {
-      case "healthy":
-        return <Badge className="bg-green-100 text-green-800 border-green-200">Healthy</Badge>
-      case "warning":
-        return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">Warning</Badge>
-      case "critical":
-        return <Badge className="bg-red-100 text-red-800 border-red-200">Critical</Badge>
-      default:
-        return <Badge variant="outline">Unknown</Badge>
-    }
+  const getCompletionRate = () => {
+    if (stats.totalAppointments === 0) return 0
+    return Math.round((stats.completedAppointments / stats.totalAppointments) * 100)
   }
 
-  const getDataStatusBadge = () => {
-    switch (dataStatus) {
-      case "loading":
-        return <Badge className="bg-blue-100 text-blue-800 border-blue-200">Loading...</Badge>
-      case "online":
-        return <Badge className="bg-green-100 text-green-800 border-green-200">Live Data</Badge>
-      case "error":
-        return <Badge className="bg-red-100 text-red-800 border-red-200">Error</Badge>
+  const getApprovalRate = () => {
+    if (stats.totalAppointments === 0) return 0
+    return Math.round(((stats.approvedAppointments + stats.completedAppointments) / stats.totalAppointments) * 100)
+  }
+
+  const getTimeBasedAppointments = () => {
+    switch (timeFilter) {
+      case "today":
+        return stats.todayAppointments
+      case "week":
+        return stats.thisWeekAppointments
+      case "month":
+        return stats.thisMonthAppointments
       default:
-        return <Badge variant="outline">Unknown</Badge>
+        return stats.thisWeekAppointments
     }
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-600">{""}</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Select value={timeFilter} onValueChange={setTimeFilter}>
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="today">Today</SelectItem>
+              <SelectItem value="week">This Week</SelectItem>
+              <SelectItem value="month">This Month</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button onClick={refreshStats} disabled={loading} variant="outline" size="sm">
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+        </div>
+      </div>
+
       {/* Error Display */}
       {error && (
         <Card className="border-red-200 bg-red-50">
           <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <AlertTriangle className="h-4 w-4 text-red-600" />
-              <span className="text-red-800 text-sm">{error}</span>
-            </div>
+            <p className="text-red-800 text-sm">{error}</p>
           </CardContent>
         </Card>
       )}
 
-      {/* System Health Overview */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center space-x-2">
-                <TrendingUp className="h-5 w-5" />
-                <span>System Overview</span>
-              </CardTitle>
-              <CardDescription></CardDescription>
-            </div>
-            <div className="flex items-center space-x-2">
-              
-              
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="text-center p-3 bg-blue-50 rounded-lg">
-              <div className="text-2xl font-bold text-blue-600">{stats.totalUsers}</div>
-              <div className="text-sm text-blue-700">Total Users</div>
-            </div>
-            <div className="text-center p-3 bg-green-50 rounded-lg">
-              <div className="text-2xl font-bold text-green-600">{stats.totalAppointments}</div>
-              <div className="text-sm text-green-700">Total Appointments</div>
-            </div>
-            <div className="text-center p-3 bg-yellow-50 rounded-lg">
-              <div className="text-2xl font-bold text-yellow-600">{stats.pendingAppointments}</div>
-              <div className="text-sm text-yellow-700">Pending Approval</div>
-            </div>
-            <div className="text-center p-3 bg-purple-50 rounded-lg">
-              <div className="text-2xl font-bold text-purple-600">{stats.unreadMessages}</div>
-              <div className="text-sm text-purple-700">Unread Messages</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Today's Activity */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Today's Activity</CardTitle>
-          <CardDescription>Current day statistics and trends</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex items-center space-x-3 p-3 border rounded-lg">
-              <Calendar className="h-8 w-8 text-blue-600" />
+      {/* Key Metrics */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
               <div>
-                <div className="text-lg font-bold">{stats.todayAppointments}</div>
-                <div className="text-sm text-gray-600">Today's Appointments</div>
+                <p className="text-blue-600 text-sm font-medium">Total Users</p>
+                <p className="text-2xl font-bold text-blue-900">{stats.totalUsers}</p>
+              </div>
+              <Users className="h-8 w-8 text-blue-600" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-green-600 text-sm font-medium">Total Appointments</p>
+                <p className="text-2xl font-bold text-green-900">{stats.totalAppointments}</p>
+              </div>
+              <Calendar className="h-8 w-8 text-green-600" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-purple-600 text-sm font-medium">Total Meetings</p>
+                <p className="text-2xl font-bold text-purple-900">{stats.totalMeetings}</p>
+              </div>
+              <Video className="h-8 w-8 text-purple-600" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-orange-600 text-sm font-medium">Pending Review</p>
+                <p className="text-2xl font-bold text-orange-900">{stats.pendingAppointments}</p>
+              </div>
+              <Clock className="h-8 w-8 text-orange-600" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Appointment Status Breakdown */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <PieChart className="h-5 w-5" />
+              Appointment Status
+            </CardTitle>
+            <CardDescription>Distribution of appointment statuses</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                  <span className="font-medium">Pending</span>
+                </div>
+                <Badge variant="outline" className="text-yellow-700 border-yellow-300">
+                  {stats.pendingAppointments}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                  <span className="font-medium">Approved</span>
+                </div>
+                <Badge variant="outline" className="text-green-700 border-green-300">
+                  {stats.approvedAppointments}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                  <span className="font-medium">Completed</span>
+                </div>
+                <Badge variant="outline" className="text-blue-700 border-blue-300">
+                  {stats.completedAppointments}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                  <span className="font-medium">Rejected</span>
+                </div>
+                <Badge variant="outline" className="text-red-700 border-red-300">
+                  {stats.rejectedAppointments}
+                </Badge>
               </div>
             </div>
-            <div className="flex items-center space-x-3 p-3 border rounded-lg">
-              <TrendingUp className="h-8 w-8 text-green-600" />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5" />
+              Performance Metrics
+            </CardTitle>
+            <CardDescription>Key performance indicators</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
               <div>
-                <div className="text-lg font-bold">{stats.thisWeekAppointments}</div>
-                <div className="text-sm text-gray-600">This Week</div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-medium">Completion Rate</span>
+                  <span className="text-sm font-bold text-green-600">{getCompletionRate()}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${getCompletionRate()}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-medium">Approval Rate</span>
+                  <span className="text-sm font-bold text-blue-600">{getApprovalRate()}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${getApprovalRate()}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">
+                    {timeFilter === "today" ? "Today's" : timeFilter === "week" ? "This Week's" : "This Month's"}{" "}
+                    Appointments
+                  </span>
+                  <span className="font-bold text-lg">{getTimeBasedAppointments()}</span>
+                </div>
               </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
 
-      {/* Supabase Status */}
+      {/* Meeting Analytics */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Database className="h-5 w-5" />
-            <span>Database Status</span>
+          <CardTitle className="flex items-center gap-2">
+            <Video className="h-5 w-5" />
+            Meeting Analytics
           </CardTitle>
-          <CardDescription>Database connection and performance</CardDescription>
+          <CardDescription>Overview of scheduled meetings</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                <span className="font-medium">Database plan</span>
-              </div>
-              <Badge className="bg-green-100 text-green-800 border-green-200">Connected</Badge>
+          <div className="grid grid-cols-2 gap-6">
+            <div className="text-center p-4 bg-blue-50 rounded-lg">
+              <div className="text-2xl font-bold text-blue-600">{stats.upcomingMeetings}</div>
+              <div className="text-sm text-blue-700">Upcoming Meetings</div>
             </div>
-            <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
-              <strong>Features:</strong>
-              <ul className="mt-1 space-y-1">
-                <li>• 500 MB database storage</li>
-                <li>• 2 GB bandwidth</li>
-                <li>• Row Level Security (RLS)</li>
-                <li>• Up to 50,000 users</li>
-                <li>• 99.9% uptime guarantee</li>
-              </ul>
+            <div className="text-center p-4 bg-gray-50 rounded-lg">
+              <div className="text-2xl font-bold text-gray-600">{stats.completedMeetings}</div>
+              <div className="text-sm text-gray-700">Completed Meetings</div>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Performance Metrics */}
+      {/* Quick Actions */}
       <Card>
         <CardHeader>
-          <CardTitle>Performance Metrics</CardTitle>
+          <CardTitle>Quick Actions</CardTitle>
+          <CardDescription>Common administrative tasks</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Completion Rate:</span>
-              <span className="font-medium text-green-600">
-                {stats.totalAppointments > 0
-                  ? Math.round((stats.completedAppointments / stats.totalAppointments) * 100)
-                  : 0}
-                %
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Approval Rate:</span>
-              <span className="font-medium text-blue-600">
-                {stats.totalAppointments > 0
-                  ? Math.round(
-                      ((stats.approvedAppointments + stats.completedAppointments) / stats.totalAppointments) * 100,
-                    )
-                  : 0}
-                %
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Database Status:</span>
-              <span className="font-medium text-green-600">● Connected</span>
-            </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <Button variant="outline" className="h-auto p-4 flex flex-col items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              <span className="text-xs">View Appointments</span>
+            </Button>
+            <Button variant="outline" className="h-auto p-4 flex flex-col items-center gap-2">
+              <Users className="h-5 w-5" />
+              <span className="text-xs">Manage Users</span>
+            </Button>
+            <Button variant="outline" className="h-auto p-4 flex flex-col items-center gap-2">
+              <Video className="h-5 w-5" />
+              <span className="text-xs">Schedule Meeting</span>
+            </Button>
+            <Button variant="outline" className="h-auto p-4 flex flex-col items-center gap-2">
+              <TrendingUp className="h-5 w-5" />
+              <span className="text-xs">View Reports</span>
+            </Button>
           </div>
         </CardContent>
       </Card>

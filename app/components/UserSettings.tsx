@@ -5,9 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { User, Phone, Save, X } from "lucide-react"
+import { User, Phone, Save, X, Settings } from "lucide-react"
 import { updateUser } from "../../lib/supabase"
 import type { User as UserType } from "../../lib/supabase"
+import { ThemeToggle } from "./ThemeToggle" // Import ThemeToggle
 
 interface UserSettingsProps {
   user: UserType
@@ -123,6 +124,21 @@ export default function UserSettings({ user, onClose, onUserUpdate }: UserSettin
               <span className="font-medium">{new Date(user.created_at).toLocaleDateString()}</span>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Dark Mode Toggle */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Settings className="h-5 w-5" />
+            <span>Theme Settings</span>
+          </CardTitle>
+          <CardDescription>Adjust the application's appearance</CardDescription>
+        </CardHeader>
+        <CardContent className="flex items-center justify-between">
+          <Label htmlFor="theme-toggle">Dark Mode</Label>
+          <ThemeToggle />
         </CardContent>
       </Card>
     </div>

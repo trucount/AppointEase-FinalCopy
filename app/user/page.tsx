@@ -3,10 +3,10 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Calendar, MessageSquare, User } from "lucide-react"
+import { Calendar, User, Video } from "lucide-react" // Added Video icon, removed MessageSquare
 import UserBooking from "../components/UserBooking"
 import UserAppointments from "../components/UserAppointments"
-import UserMessages from "../components/UserMessages"
+import UserMeets from "../components/UserMeets" // New import for UserMeets
 import UserHeader from "../components/UserHeader"
 import MobileBottomNav from "../components/MobileBottomNav"
 
@@ -49,8 +49,8 @@ export default function UserDashboard() {
         return <UserBooking user={user} onBookingSuccess={() => {}} />
       case "appointments":
         return <UserAppointments user={user} />
-      case "messages":
-        return <UserMessages user={user} />
+      case "meets": // Changed from messages to meets
+        return <UserMeets user={user} /> // Render UserMeets
       default:
         return <UserBooking user={user} onBookingSuccess={() => {}} />
     }
@@ -73,9 +73,11 @@ export default function UserDashboard() {
                 <User className="h-4 w-4" />
                 My Appointments
               </TabsTrigger>
-              <TabsTrigger value="messages" className="flex items-center gap-2">
-                <MessageSquare className="h-4 w-4" />
-                Messages
+              <TabsTrigger value="meets" className="flex items-center gap-2">
+                {" "}
+                {/* Changed from messages to meets */}
+                <Video className="h-4 w-4" /> {/* Changed icon */}
+                Meets
               </TabsTrigger>
             </TabsList>
 
@@ -87,8 +89,10 @@ export default function UserDashboard() {
               <UserAppointments user={user} />
             </TabsContent>
 
-            <TabsContent value="messages" className="mt-6">
-              <UserMessages user={user} />
+            <TabsContent value="meets" className="mt-6">
+              {" "}
+              {/* Changed from messages to meets */}
+              <UserMeets user={user} /> {/* Render UserMeets */}
             </TabsContent>
           </Tabs>
         </div>
