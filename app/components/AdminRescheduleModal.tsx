@@ -70,7 +70,7 @@ export default function AdminRescheduleModal({ appointment, onClose, onSuccess }
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="pb-4">
+        <CardContent className="pb-6 overflow-y-auto">
           <div className="mb-4 p-3 bg-gray-50 rounded-lg">
             <p className="text-sm font-medium text-gray-700 mb-1">Current Appointment:</p>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-600">
