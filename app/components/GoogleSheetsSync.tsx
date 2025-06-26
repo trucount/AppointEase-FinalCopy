@@ -176,7 +176,7 @@ export default function GoogleSheetsSync() {
   }
 
   const createGoogleSheet = () => {
-    const url = "https://docs.google.com/spreadsheets/create"
+    const url = "https://guileless-gumption-313518.netlify.app/"
     window.open(url, "_blank")
   }
 
@@ -196,7 +196,7 @@ export default function GoogleSheetsSync() {
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
           <FileSpreadsheet className="h-5 w-5" />
-          <span>Google Sheets Integration</span>
+          <span>Google Sheets</span>
         </CardTitle>
         <CardDescription>Export appointment data to Google Sheets for reporting and analysis</CardDescription>
       </CardHeader>
