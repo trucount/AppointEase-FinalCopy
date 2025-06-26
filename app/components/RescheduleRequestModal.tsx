@@ -67,7 +67,7 @@ export default function RescheduleRequestModal({ appointment, user, onClose, onS
             </Button>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="max-h-[70vh] overflow-y-auto pb-6">
           <div className="mb-4 p-3 bg-gray-50 rounded-lg">
             <p className="text-sm font-medium text-gray-700 mb-1">Current Appointment:</p>
             <div className="flex items-center space-x-4 text-sm text-gray-600">
