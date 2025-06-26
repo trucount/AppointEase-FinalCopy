@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, type FormEvent } from "react"
+import type React from "react"
+import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -27,7 +28,7 @@ export default function AdminRescheduleModal({ appointment, onClose, onSuccess }
   })
   const [loading, setLoading] = useState(false)
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
 
@@ -57,7 +58,7 @@ export default function AdminRescheduleModal({ appointment, onClose, onSuccess }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
+      <Card className="w-full max-w-md">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
@@ -69,7 +70,7 @@ export default function AdminRescheduleModal({ appointment, onClose, onSuccess }
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="pb-6 overflow-y-auto">
+        <CardContent>
           <div className="mb-4 p-3 bg-gray-50 rounded-lg">
             <p className="text-sm font-medium text-gray-700 mb-1">Current Appointment:</p>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-600">
