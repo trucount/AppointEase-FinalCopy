@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Calendar, Clock, CheckCircle, X, AlertCircle, RotateCcw, Filter } from "lucide-react"
+import { Calendar, Clock, CheckCircle, X, AlertCircle, RotateCcw, Filter, Link, Lock, MapPin } from "lucide-react"
 import { getUserAppointments, updateAppointment, supabase } from "../../lib/supabase"
 import type { User, Appointment } from "../../lib/supabase"
 import RescheduleRequestModal from "./RescheduleRequestModal"
@@ -112,6 +112,18 @@ export default function UserAppointments({ user }: UserAppointmentsProps) {
     )
   }
 
+  const getModeBadge = (mode: string) => {
+    const variants = {
+      online: "bg-purple-100 text-purple-800 border-purple-300",
+      "in-person": "bg-orange-100 text-orange-800 border-orange-300",
+    }
+    return (
+      <Badge variant="outline" className={variants[mode as keyof typeof variants] || "bg-gray-100 text-gray-800"}>
+        {mode.charAt(0).toUpperCase() + mode.slice(1)}
+      </Badge>
+    )
+  }
+
   const canRequestReschedule = (appointment: Appointment) => {
     return (
       appointment.status === "approved" &&
@@ -134,7 +146,10 @@ export default function UserAppointments({ user }: UserAppointmentsProps) {
               {appointment.description || "No description provided"}
             </CardDescription>
           </div>
-          {getStatusBadge(appointment.status)}
+          <div className="flex flex-col sm:flex-row gap-2">
+            {appointment.appointment_mode && getModeBadge(appointment.appointment_mode)}
+            {getStatusBadge(appointment.status)}
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -151,6 +166,33 @@ export default function UserAppointments({ user }: UserAppointmentsProps) {
               </span>
             </div>
           </div>
+
+          {appointment.appointment_mode === "online" && appointment.appointment_url && (
+            <div className="flex items-center gap-2 text-sm text-blue-600">
+              <Link className="h-4 w-4 flex-shrink-0" />
+              <a
+                href={appointment.appointment_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline hover:no-underline"
+              >
+                Join Online Meeting
+              </a>
+              {appointment.appointment_password && (
+                <span className="flex items-center gap-1 text-gray-600">
+                  <Lock className="h-3 w-3" />
+                  <span>{appointment.appointment_password}</span>
+                </span>
+              )}
+            </div>
+          )}
+
+          {appointment.appointment_mode === "in-person" && (
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <MapPin className="h-4 w-4 flex-shrink-0" />
+              <span>In-person meeting (details provided separately)</span>
+            </div>
+          )}
 
           <div className="text-xs text-gray-500">Booked: {new Date(appointment.created_at).toLocaleDateString()}</div>
 

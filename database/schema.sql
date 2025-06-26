@@ -24,7 +24,11 @@ CREATE TABLE IF NOT EXISTS appointments (
   end_time TIME NOT NULL,
   status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'completed')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  -- New columns for appointment mode and details
+  appointment_mode VARCHAR(20) DEFAULT 'online' CHECK (appointment_mode IN ('online', 'in-person')),
+  appointment_url TEXT,
+  appointment_password VARCHAR(255)
 );
 
 -- Admin Settings table (existing, updated for consistency)
@@ -50,7 +54,11 @@ CREATE TABLE IF NOT EXISTS meetings (
   end_time TIME NOT NULL,
   created_by_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  -- New columns for meeting mode and details
+  meeting_mode VARCHAR(20) DEFAULT 'online' CHECK (meeting_mode IN ('online', 'in-person')),
+  meeting_url TEXT,
+  meeting_password VARCHAR(255)
 );
 
 -- New: Meeting Participants table (many-to-many relationship)
@@ -77,7 +85,7 @@ CREATE TABLE IF NOT EXISTS reschedule_requests (
 );
 
 -- Insert default admin user (updated for UUID)
-INSERT INTO users (username, password, full_name, role) 
+INSERT INTO users (username, password, full_name, role)
 VALUES ('Head', 'Testplay', 'Administrator', 'admin')
 ON CONFLICT (username) DO NOTHING;
 

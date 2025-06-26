@@ -30,8 +30,8 @@ export default function AdminHeader({ user, onUserUpdate }: AdminHeaderProps) {
                 <span className="text-white font-bold">AE</span>
               </div>
               <div>
-                <h1 className="text-xl font-semibold text-gray-900">AppointEase Admin</h1>
-                <p className="text-sm text-gray-500">Welcome, {user?.full_name}</p>
+                <h1 className="text-xl font-semibold text-gray-900">AppointEase</h1>
+                <p className="text-sm text-gray-500">Welcome, Admin</p>
               </div>
             </div>
 

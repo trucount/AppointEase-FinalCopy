@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Check, X, Clock, User, Calendar, RotateCcw, Filter } from "lucide-react"
+import { Check, X, Clock, User, Calendar, RotateCcw, Filter, Link, Lock, MapPin } from "lucide-react"
 import {
   getAppointments,
   updateAppointment,
@@ -14,12 +14,16 @@ import {
   updateRescheduleRequest,
   supabase,
 } from "../../lib/supabase"
+import type { Appointment } from "../../lib/supabase" // Import Appointment type
+import AdminRescheduleModal from "./AdminRescheduleModal" // Import the new modal
 
 export default function AdminAppointments() {
   const [appointments, setAppointments] = useState<any[]>([])
   const [rescheduleRequests, setRescheduleRequests] = useState<any[]>([])
   const [statusFilter, setStatusFilter] = useState("all")
   const [isMobile, setIsMobile] = useState(false)
+  const [showAdminRescheduleModal, setShowAdminRescheduleModal] = useState(false)
+  const [currentAppointmentToReschedule, setCurrentAppointmentToReschedule] = useState<Appointment | null>(null)
 
   useEffect(() => {
     // Check if mobile
@@ -117,6 +121,21 @@ export default function AdminAppointments() {
     }
   }
 
+  const handleOpenAdminRescheduleModal = (appointment: Appointment) => {
+    setCurrentAppointmentToReschedule(appointment)
+    setShowAdminRescheduleModal(true)
+  }
+
+  const handleCloseAdminRescheduleModal = () => {
+    setShowAdminRescheduleModal(false)
+    setCurrentAppointmentToReschedule(null)
+  }
+
+  const handleAdminRescheduleSuccess = () => {
+    loadAppointments() // Reload appointments after successful reschedule
+    handleCloseAdminRescheduleModal()
+  }
+
   const getStatusBadge = (status: string) => {
     const variants = {
       pending: "bg-yellow-100 text-yellow-800 border-yellow-300",
@@ -128,6 +147,18 @@ export default function AdminAppointments() {
     return (
       <Badge variant="outline" className={variants[status as keyof typeof variants] || "bg-gray-100 text-gray-800"}>
         {status.charAt(0).toUpperCase() + status.slice(1)}
+      </Badge>
+    )
+  }
+
+  const getModeBadge = (mode: string) => {
+    const variants = {
+      online: "bg-purple-100 text-purple-800 border-purple-300",
+      "in-person": "bg-orange-100 text-orange-800 border-orange-300",
+    }
+    return (
+      <Badge variant="outline" className={variants[mode as keyof typeof variants] || "bg-gray-100 text-gray-800"}>
+        {mode.charAt(0).toUpperCase() + mode.slice(1)}
       </Badge>
     )
   }
@@ -152,7 +183,10 @@ export default function AdminAppointments() {
                 <span>{user?.full_name || "Unknown User"}</span>
               </CardDescription>
             </div>
-            {getStatusBadge(appointment.status)}
+            <div className="flex flex-col sm:flex-row gap-2">
+              {appointment.appointment_mode && getModeBadge(appointment.appointment_mode)}
+              {getStatusBadge(appointment.status)}
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -172,30 +206,70 @@ export default function AdminAppointments() {
               </div>
             </div>
 
+            {appointment.appointment_mode === "online" && appointment.appointment_url && (
+              <div className="flex items-center gap-2 text-sm text-blue-600">
+                <Link className="h-4 w-4 flex-shrink-0" />
+                <a
+                  href={appointment.appointment_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline hover:no-underline"
+                >
+                  Join Online Meeting
+                </a>
+                {appointment.appointment_password && (
+                  <span className="flex items-center gap-1 text-gray-600">
+                    <Lock className="h-3 w-3" />
+                    <span>{appointment.appointment_password}</span>
+                  </span>
+                )}
+              </div>
+            )}
+
+            {appointment.appointment_mode === "in-person" && (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <MapPin className="h-4 w-4 flex-shrink-0" />
+                <span>In-person meeting (details provided separately)</span>
+              </div>
+            )}
+
             {user && (
               <div className="text-sm text-gray-600">
                 <strong>Contact:</strong> {user.phone || "No phone provided"}
               </div>
             )}
 
-            {appointment.status === "pending" && (
+            {(appointment.status === "pending" || appointment.status === "approved") && (
               <div className="flex flex-col sm:flex-row gap-2 pt-2">
-                <Button
-                  size="sm"
-                  onClick={() => updateAppointmentStatus(appointment.id, "approved")}
-                  className="bg-green-600 hover:bg-green-700 flex items-center gap-2"
-                >
-                  <Check className="h-4 w-4" />
-                  Approve
-                </Button>
+                {appointment.status === "pending" && (
+                  <>
+                    <Button
+                      size="sm"
+                      onClick={() => updateAppointmentStatus(appointment.id, "approved")}
+                      className="bg-green-600 hover:bg-green-700 flex items-center gap-2"
+                    >
+                      <Check className="h-4 w-4" />
+                      Approve
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => updateAppointmentStatus(appointment.id, "rejected")}
+                      className="text-red-600 border-red-600 hover:bg-red-50 flex items-center gap-2"
+                    >
+                      <X className="h-4 w-4" />
+                      Reject
+                    </Button>
+                  </>
+                )}
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => updateAppointmentStatus(appointment.id, "rejected")}
-                  className="text-red-600 border-red-600 hover:bg-red-50 flex items-center gap-2"
+                  onClick={() => handleOpenAdminRescheduleModal(appointment)}
+                  className="flex items-center gap-2"
                 >
-                  <X className="h-4 w-4" />
-                  Reject
+                  <RotateCcw className="h-4 w-4" />
+                  Reschedule
                 </Button>
               </div>
             )}
@@ -379,6 +453,14 @@ export default function AdminAppointments() {
         ) : (
           <div className="space-y-3">{getFilteredAppointments().map(renderAppointmentCard)}</div>
         )}
+
+        {showAdminRescheduleModal && currentAppointmentToReschedule && (
+          <AdminRescheduleModal
+            appointment={currentAppointmentToReschedule}
+            onClose={handleCloseAdminRescheduleModal}
+            onSuccess={handleAdminRescheduleSuccess}
+          />
+        )}
       </div>
     )
   }
@@ -465,6 +547,14 @@ export default function AdminAppointments() {
           )}
         </TabsContent>
       </Tabs>
+
+      {showAdminRescheduleModal && currentAppointmentToReschedule && (
+        <AdminRescheduleModal
+          appointment={currentAppointmentToReschedule}
+          onClose={handleCloseAdminRescheduleModal}
+          onSuccess={handleAdminRescheduleSuccess}
+        />
+      )}
     </div>
   )
 }

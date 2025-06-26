@@ -55,8 +55,7 @@ export default function UserSettings({ user, onClose, onUserUpdate }: UserSettin
     <div className="space-y-6">
       {onClose && (
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">Profile Settings</h2>
-          <Button variant="ghost" size="sm" onClick={onClose}>
+          <h2 className="text-lg font-semibold">{""} <Button variant="ghost" size="sm" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
         </div>

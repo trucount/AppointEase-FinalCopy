@@ -1,177 +1,126 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Clock, Plus, AlertCircle, CheckCircle } from "lucide-react"
-import { getAdminSettings, getAppointments, createAppointment } from "../../lib/supabase"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { createAppointment, getAdminSettings } from "../../lib/supabase"
 import type { User, AdminSettings } from "../../lib/supabase"
 
 interface UserBookingProps {
   user: User
-  onBookingSuccess: () => void
 }
 
-export default function UserBooking({ user, onBookingSuccess }: UserBookingProps) {
-  const [selectedDate, setSelectedDate] = useState("")
-  const [availableSlots, setAvailableSlots] = useState([])
-  const [selectedSlot, setSelectedSlot] = useState<any>(null)
-  const [appointmentData, setAppointmentData] = useState({
+export default function UserBooking({ user }: UserBookingProps) {
+  const [formData, setFormData] = useState({
     title: "",
     description: "",
+    appointment_date: "",
+    start_time: "",
+    end_time: "",
+    appointment_mode: "online", // Default to online
+    appointment_url: "",
+    appointment_password: "",
   })
+  const [availableSlots, setAvailableSlots] = useState<string[]>([])
+  const [adminSettings, setAdminSettings] = useState<AdminSettings | null>(null)
   const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState<{ type: "success" | "error" | "info"; text: string } | null>(null)
-  const [adminSettings, setAdminSettings] = useState<AdminSettings>({
-    id: "",
-    start_time: "09:00",
-    end_time: "17:00",
-    break_start_time: "12:00",
-    break_end_time: "13:00",
-    slot_duration: 60,
-    created_at: "",
-    updated_at: "",
-  })
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
 
   useEffect(() => {
-    loadAdminSettings()
+    const fetchAdminSettings = async () => {
+      try {
+        const settings = await getAdminSettings()
+        setAdminSettings(settings)
+      } catch (error) {
+        console.error("Error fetching admin settings:", error)
+      }
+    }
+    fetchAdminSettings()
   }, [])
 
   useEffect(() => {
-    if (selectedDate) {
-      generateAvailableSlots()
-    } else {
-      setAvailableSlots([])
-      setSelectedSlot(null)
+    if (formData.appointment_date && adminSettings) {
+      generateTimeSlots()
     }
-  }, [selectedDate, adminSettings])
+  }, [formData.appointment_date, adminSettings])
 
-  const loadAdminSettings = async () => {
-    try {
-      const settings = await getAdminSettings()
-      setAdminSettings(settings)
-    } catch (error) {
-      console.error("Error loading admin settings:", error)
+  const generateTimeSlots = () => {
+    if (!adminSettings) return []
+
+    const slots: string[] = []
+    const start = new Date(`2000-01-01T${adminSettings.start_time}`)
+    const end = new Date(`2000-01-01T${adminSettings.end_time}`)
+    const breakStart = new Date(`2000-01-01T${adminSettings.break_start_time}`)
+    const breakEnd = new Date(`2000-01-01T${adminSettings.break_end_time}`)
+    const slotDuration = adminSettings.slot_duration
+
+    let currentTime = start
+    while (currentTime.getTime() < end.getTime()) {
+      const slotEndTime = new Date(currentTime.getTime() + slotDuration * 60 * 1000)
+
+      // Check for overlap with break time
+      const isDuringBreak =
+        (currentTime.getTime() >= breakStart.getTime() && currentTime.getTime() < breakEnd.getTime()) ||
+        (slotEndTime.getTime() > breakStart.getTime() && slotEndTime.getTime() <= breakEnd.getTime()) ||
+        (breakStart.getTime() > currentTime.getTime() && breakEnd.getTime() < slotEndTime.getTime())
+
+      if (!isDuringBreak && slotEndTime.getTime() <= end.getTime()) {
+        slots.push(currentTime.toTimeString().slice(0, 5))
+      }
+      currentTime = slotEndTime
     }
+    setAvailableSlots(slots)
   }
 
-  const generateAvailableSlots = async () => {
-    try {
-      setMessage({ type: "info", text: "Loading available slots..." })
+  const handleTimeChange = (value: string) => {
+    if (value === "unavailable") return
+    const selectedTime = value
+    const [hours, minutes] = selectedTime.split(":").map(Number)
+    const startTimeDate = new Date(0, 0, 0, hours, minutes)
+    const endTimeDate = new Date(startTimeDate.getTime() + (adminSettings?.slot_duration || 60) * 60 * 1000)
+    const endTime = endTimeDate.toTimeString().slice(0, 5)
 
-      // Load existing appointments for the selected date
-      const appointments = await getAppointments()
-      const bookedSlots = appointments
-        .filter(
-          (apt: any) =>
-            apt.appointment_date === selectedDate && (apt.status === "approved" || apt.status === "pending"),
-        )
-        .map((apt: any) => ({
-          startTime: apt.start_time,
-          endTime: apt.end_time,
-        }))
-
-      // Generate all possible slots
-      const slots = []
-      const start = new Date(`2024-01-01 ${adminSettings.start_time}`)
-      const end = new Date(`2024-01-01 ${adminSettings.end_time}`)
-      const breakStart = new Date(`2024-01-01 ${adminSettings.break_start_time}`)
-      const breakEnd = new Date(`2024-01-01 ${adminSettings.break_end_time}`)
-
-      let current = new Date(start)
-
-      while (current < end) {
-        const slotEnd = new Date(current.getTime() + adminSettings.slot_duration * 60000)
-
-        // Check if slot overlaps with break time
-        const isBreakTime =
-          (current >= breakStart && current < breakEnd) || (slotEnd > breakStart && slotEnd <= breakEnd)
-
-        // Check if slot is already booked
-        const isBooked = bookedSlots.some((booked: any) => {
-          const bookedStart = new Date(`2024-01-01 ${booked.startTime}`)
-          const bookedEnd = new Date(`2024-01-01 ${booked.endTime}`)
-          return (current >= bookedStart && current < bookedEnd) || (slotEnd > bookedStart && slotEnd <= bookedEnd)
-        })
-
-        if (!isBreakTime && !isBooked && slotEnd <= end) {
-          slots.push({
-            startTime: current.toTimeString().slice(0, 5),
-            endTime: slotEnd.toTimeString().slice(0, 5),
-          })
-        }
-
-        current = slotEnd
-      }
-
-      setAvailableSlots(slots)
-      setMessage(null)
-
-      if (slots.length === 0) {
-        setMessage({ type: "info", text: "No available slots for this date. Please try another date." })
-      }
-    } catch (error) {
-      console.error("Error generating slots:", error)
-      setAvailableSlots([])
-      setMessage({ type: "error", text: "Failed to load available slots. Please try again." })
-    }
+    setFormData((prev) => ({
+      ...prev,
+      start_time: selectedTime,
+      end_time: endTime,
+    }))
   }
 
-  const bookAppointment = async () => {
-    if (!selectedSlot || !appointmentData.title.trim()) {
-      setMessage({ type: "error", text: "Please fill in all required fields and select a time slot." })
-      return
-    }
-
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
     setLoading(true)
-    setMessage({ type: "info", text: "Booking your appointment..." })
+    setMessage(null)
 
     try {
-      // Check if slot is still available
-      const appointments = await getAppointments()
-      const existingAppointment = appointments.find(
-        (apt: any) =>
-          apt.appointment_date === selectedDate &&
-          apt.start_time === selectedSlot.startTime &&
-          (apt.status === "approved" || apt.status === "pending"),
-      )
-
-      if (existingAppointment) {
-        setMessage({
-          type: "error",
-          text: "Sorry, this time slot has been taken by someone else. Please select another time.",
-        })
-        generateAvailableSlots()
-        setLoading(false)
-        return
+      const { appointment_mode, appointment_url, appointment_password, ...rest } = formData
+      const dataToInsert = {
+        ...rest,
+        user_id: user.id,
+        status: "pending",
+        appointment_mode: appointment_mode,
+        appointment_url: appointment_mode === "online" ? appointment_url : null,
+        appointment_password: appointment_mode === "online" ? appointment_password : null,
       }
 
-      // Create new appointment
-      await createAppointment({
-        user_id: user.id,
-        title: appointmentData.title.trim(),
-        description: appointmentData.description.trim() || null,
-        appointment_date: selectedDate,
-        start_time: selectedSlot.startTime,
-        end_time: selectedSlot.endTime,
-        status: "pending",
+      await createAppointment(dataToInsert)
+      setMessage({ type: "success", text: "Appointment booked successfully! Awaiting admin approval." })
+      setFormData({
+        title: "",
+        description: "",
+        appointment_date: "",
+        start_time: "",
+        end_time: "",
+        appointment_mode: "online",
+        appointment_url: "",
+        appointment_password: "",
       })
-
-      setMessage({ type: "success", text: "Appointment booked successfully! Waiting for admin approval." })
-
-      // Reset form
-      setSelectedDate("")
-      setSelectedSlot(null)
-      setAppointmentData({ title: "", description: "" })
-      setAvailableSlots([])
-
-      // Clear success message after 5 seconds
-      setTimeout(() => setMessage(null), 5000)
-      onBookingSuccess()
     } catch (error) {
       console.error("Error booking appointment:", error)
       setMessage({ type: "error", text: "Failed to book appointment. Please try again." })
@@ -180,149 +129,136 @@ export default function UserBooking({ user, onBookingSuccess }: UserBookingProps
     }
   }
 
-  const today = new Date().toISOString().split("T")[0]
-  const maxDate = new Date()
-  maxDate.setMonth(maxDate.getMonth() + 3) // Allow booking up to 3 months in advance
-  const maxDateString = maxDate.toISOString().split("T")[0]
-
   return (
-    <div className="space-y-6">
-      {message && (
-        <Alert
-          className={
-            message.type === "error"
-              ? "border-red-200 bg-red-50"
-              : message.type === "success"
-                ? "border-green-200 bg-green-50"
-                : "border-blue-200 bg-blue-50"
-          }
-        >
-          {message.type === "error" && <AlertCircle className="h-4 w-4 text-red-600" />}
-          {message.type === "success" && <CheckCircle className="h-4 w-4 text-green-600" />}
-          {message.type === "info" && <Clock className="h-4 w-4 text-blue-600" />}
-          <AlertDescription
-            className={
-              message.type === "error"
-                ? "text-red-800"
-                : message.type === "success"
-                  ? "text-green-800"
-                  : "text-blue-800"
-            }
-          >
-            {message.text}
-          </AlertDescription>
-        </Alert>
-      )}
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Plus className="h-5 w-5" />
-            <span>Book New Appointment</span>
-          </CardTitle>
-          <CardDescription>Schedule a meeting with the admin</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+    <Card className="w-full max-w-2xl mx-auto">
+      <CardHeader>
+        <CardTitle>Book New Appointment</CardTitle>
+        <CardDescription>Fill out the details below to request an appointment.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <Label htmlFor="title">Appointment Title *</Label>
+            <Label htmlFor="title">Appointment Title</Label>
             <Input
               id="title"
-              placeholder="e.g., UI Discussion, Project Review"
-              value={appointmentData.title}
-              onChange={(e) => setAppointmentData({ ...appointmentData, title: e.target.value })}
-              maxLength={100}
+              value={formData.title}
+              onChange={(e) => setFormData((prev) => ({ ...prev, title: e.target.value }))}
+              placeholder="e.g., Project Discussion, Consultation"
+              required
             />
-            <div className="text-xs text-gray-500 mt-1">{appointmentData.title.length}/100 characters</div>
           </div>
 
           <div>
             <Label htmlFor="description">Description (Optional)</Label>
             <Textarea
               id="description"
-              placeholder="Describe the purpose of your appointment..."
-              value={appointmentData.description}
-              onChange={(e) => setAppointmentData({ ...appointmentData, description: e.target.value })}
-              maxLength={500}
+              value={formData.description}
+              onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
+              placeholder="Provide more details about your appointment."
               rows={3}
             />
-            <div className="text-xs text-gray-500 mt-1">{appointmentData.description.length}/500 characters</div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="appointment_date">Date</Label>
+              <Input
+                id="appointment_date"
+                type="date"
+                value={formData.appointment_date}
+                onChange={(e) => setFormData((prev) => ({ ...prev, appointment_date: e.target.value }))}
+                min={new Date().toISOString().split("T")[0]}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="start_time">Time</Label>
+              <Select value={formData.start_time} onValueChange={handleTimeChange} required>
+                <SelectTrigger id="start_time" disabled={availableSlots.length === 0}>
+                  <SelectValue placeholder="Select a time slot" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableSlots.length > 0 ? (
+                    availableSlots.map((slot) => (
+                      <SelectItem key={slot} value={slot}>
+                        {slot} -{" "}
+                        {new Date(
+                          new Date(`2000-01-01T${slot}`).getTime() + (adminSettings?.slot_duration || 60) * 60 * 1000,
+                        )
+                          .toTimeString()
+                          .slice(0, 5)}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="unavailable" disabled>
+                      No slots available for this date or settings not loaded.
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div>
-            <Label htmlFor="date">Select Date *</Label>
-            <Input
-              id="date"
-              type="date"
-              min={today}
-              max={maxDateString}
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-            />
-            <div className="text-xs text-gray-500 mt-1">You can book up to 3 months in advance</div>
+            <Label htmlFor="appointment_mode">Meeting Mode</Label>
+            <Select
+              value={formData.appointment_mode}
+              onValueChange={(value: "online" | "in-person") =>
+                setFormData((prev) => ({ ...prev, appointment_mode: value }))
+              }
+              required
+            >
+              <SelectTrigger id="appointment_mode">
+                <SelectValue placeholder="Select meeting mode" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="online">Online</SelectItem>
+                <SelectItem value="in-person">In-person</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
-          {selectedDate && (
-            <div>
-              <Label>Available Time Slots</Label>
-              {availableSlots.length === 0 ? (
-                <div className="text-center py-8 bg-gray-50 rounded-lg mt-2">
-                  <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500">No available slots for this date</p>
-                  <p className="text-sm text-gray-400 mt-1">Try selecting a different date</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-2 mt-2">
-                  {availableSlots.map((slot: any, index) => (
-                    <Button
-                      key={index}
-                      variant={selectedSlot === slot ? "default" : "outline"}
-                      className="text-sm h-10"
-                      onClick={() => setSelectedSlot(slot)}
-                    >
-                      {slot.startTime} - {slot.endTime}
-                    </Button>
-                  ))}
-                </div>
-              )}
+          {formData.appointment_mode === "online" && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="appointment_url">Meeting URL</Label>
+                <Input
+                  id="appointment_url"
+                  type="url"
+                  value={formData.appointment_url}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, appointment_url: e.target.value }))}
+                  placeholder="e.g., https://zoom.us/j/1234567890"
+                  required={formData.appointment_mode === "online"}
+                />
+              </div>
+              <div>
+                <Label htmlFor="appointment_password">Meeting Password (Optional)</Label>
+                <Input
+                  id="appointment_password"
+                  type="text"
+                  value={formData.appointment_password}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, appointment_password: e.target.value }))}
+                  placeholder="e.g., 12345"
+                />
+              </div>
             </div>
           )}
 
-          <Button
-            onClick={bookAppointment}
-            disabled={loading || !selectedSlot || !appointmentData.title.trim()}
-            className="w-full h-12"
-          >
-            {loading ? "Booking..." : "Book Appointment"}
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? "Booking..." : "Request Appointment"}
           </Button>
-        </CardContent>
-      </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Admin Availability</CardTitle>
-          <CardDescription>Current working hours and schedule</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center p-2 bg-gray-50 rounded">
-              <span className="text-sm font-medium text-gray-700">Working Hours:</span>
-              <span className="font-medium text-blue-600">
-                {adminSettings.start_time} - {adminSettings.end_time}
-              </span>
+          {message && (
+            <div
+              className={`mt-4 p-3 rounded-md text-sm ${
+                message.type === "success" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+              }`}
+            >
+              {message.text}
             </div>
-            <div className="flex justify-between items-center p-2 bg-gray-50 rounded">
-              <span className="text-sm font-medium text-gray-700">Break Time:</span>
-              <span className="font-medium text-orange-600">
-                {adminSettings.break_start_time} - {adminSettings.break_end_time}
-              </span>
-            </div>
-            <div className="flex justify-between items-center p-2 bg-gray-50 rounded">
-              <span className="text-sm font-medium text-gray-700">Slot Duration:</span>
-              <span className="font-medium text-green-600">{adminSettings.slot_duration} minutes</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+          )}
+        </form>
+      </CardContent>
+    </Card>
   )
 }

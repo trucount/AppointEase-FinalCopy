@@ -9,6 +9,7 @@ import { Settings, Save, Clock } from "lucide-react"
 import { getAdminSettings, updateAdminSettings } from "../../lib/supabase"
 import type { AdminSettings as AdminSettingsType } from "../../lib/supabase"
 import { ThemeToggle } from "./ThemeToggle" // Import ThemeToggle
+import GoogleSheetsSync from "./GoogleSheetsSync"
 
 export default function AdminSettings() {
   const [loading, setLoading] = useState(false)
@@ -173,6 +174,9 @@ export default function AdminSettings() {
           <ThemeToggle />
         </CardContent>
       </Card>
+
+      {/* Google Sheets Integration */}
+      <GoogleSheetsSync />
     </div>
   )
 }

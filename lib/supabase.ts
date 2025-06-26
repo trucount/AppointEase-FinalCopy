@@ -28,6 +28,10 @@ export interface Appointment {
   status: "pending" | "approved" | "rejected" | "completed"
   created_at: string
   updated_at: string
+  // New fields for appointment mode and details
+  appointment_mode?: "online" | "in-person"
+  appointment_url?: string
+  appointment_password?: string
 }
 
 export interface Meeting {
@@ -42,6 +46,10 @@ export interface Meeting {
   updated_at: string
   participants?: User[]
   created_by_user_name?: string
+  // New fields
+  meeting_mode?: "online" | "in-person"
+  meeting_url?: string
+  meeting_password?: string
 }
 
 export interface RescheduleRequest {
@@ -479,4 +487,16 @@ export async function checkUsernameExists(username: string, excludeUserId?: stri
   }
   if (error) throw error
   return true // Username exists
+}
+
+// Helper function to get meetings data
+export async function getMeetings() {
+  const { data, error } = await supabase.from("meetings").select("*").order("created_at", { ascending: false })
+
+  if (error) {
+    console.error("Error fetching meetings:", error)
+    throw error
+  }
+
+  return data || []
 }

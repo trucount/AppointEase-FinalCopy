@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Plus, Video, Calendar, Clock, Users, Edit, Trash2, X } from "lucide-react"
+import { Plus, Video, Calendar, Clock, Users, Edit, Trash2, X, Link, Lock } from "lucide-react"
 import { getAllMeetings, createMeeting, updateMeeting, deleteMeeting, getUsers, supabase } from "../../lib/supabase"
 import type { User } from "../../lib/supabase"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -28,6 +28,9 @@ export default function AdminMeets() {
     start_time: "",
     end_time: "",
     participant_ids: [] as string[],
+    meeting_mode: "online" as "online" | "in-person", // New field
+    meeting_url: "", // New field
+    meeting_password: "", // New field
   })
   const [activeTab, setActiveTab] = useState("upcoming")
 
@@ -91,6 +94,9 @@ export default function AdminMeets() {
         start_time: formData.start_time,
         end_time: formData.end_time,
         created_by_user_id: adminUser.id,
+        meeting_mode: formData.meeting_mode, // Include new field
+        meeting_url: formData.meeting_mode === "online" ? formData.meeting_url : null, // Include new field
+        meeting_password: formData.meeting_mode === "online" ? formData.meeting_password : null, // Include new field
       }
 
       if (editingMeeting) {
@@ -116,6 +122,9 @@ export default function AdminMeets() {
       start_time: meeting.start_time,
       end_time: meeting.end_time,
       participant_ids: meeting.participants?.map((p: any) => p.id) || [],
+      meeting_mode: meeting.meeting_mode || "online", // Populate new field
+      meeting_url: meeting.meeting_url || "", // Populate new field
+      meeting_password: meeting.meeting_password || "", // Populate new field
     })
     setShowCreateForm(true)
   }
@@ -140,6 +149,9 @@ export default function AdminMeets() {
       start_time: "",
       end_time: "",
       participant_ids: [],
+      meeting_mode: "online",
+      meeting_url: "",
+      meeting_password: "",
     })
     setShowCreateForm(false)
     setEditingMeeting(null)
@@ -261,6 +273,52 @@ export default function AdminMeets() {
                 />
               </div>
 
+              {/* Meeting Mode Selection */}
+              <div>
+                <Label htmlFor="meeting_mode">Meeting Mode</Label>
+                <Select
+                  value={formData.meeting_mode}
+                  onValueChange={(value: "online" | "in-person") =>
+                    setFormData((prev) => ({ ...prev, meeting_mode: value }))
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select mode" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="online">Online</SelectItem>
+                    <SelectItem value="in-person">In-person</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Conditional fields for Online meetings */}
+              {formData.meeting_mode === "online" && (
+                <>
+                  <div>
+                    <Label htmlFor="meeting_url">Meeting URL</Label>
+                    <Input
+                      id="meeting_url"
+                      type="url"
+                      value={formData.meeting_url}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, meeting_url: e.target.value }))}
+                      placeholder="e.g., https://zoom.us/j/123456789"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="meeting_password">Meeting Password (Optional)</Label>
+                    <Input
+                      id="meeting_password"
+                      type="text"
+                      value={formData.meeting_password}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, meeting_password: e.target.value }))}
+                      placeholder="e.g., MySecretPass"
+                    />
+                  </div>
+                </>
+              )}
+
               <div>
                 <Label>Select Participants</Label>
                 <div className="mt-2 max-h-40 overflow-y-auto border rounded-md p-3 space-y-2">
@@ -351,7 +409,7 @@ export default function AdminMeets() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      <div className="flex items-center space-x-4 text-sm">
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
                         <div className="flex items-center space-x-1">
                           <Calendar className="h-4 w-4 text-gray-500" />
                           <span>{new Date(meeting.meeting_date).toLocaleDateString()}</span>
@@ -367,6 +425,29 @@ export default function AdminMeets() {
                           <span>{meeting.participants?.length || 0} participants</span>
                         </div>
                       </div>
+
+                      {/* Display Meeting Mode and Details */}
+                      {meeting.meeting_mode && (
+                        <div className="flex items-center space-x-1 text-sm text-gray-600">
+                          <Badge variant="secondary">
+                            {meeting.meeting_mode === "online" ? "Online" : "In-person"}
+                          </Badge>
+                        </div>
+                      )}
+                      {meeting.meeting_mode === "online" && meeting.meeting_url && (
+                        <div className="flex items-center space-x-1 text-sm text-blue-600">
+                          <Link className="h-4 w-4" />
+                          <a href={meeting.meeting_url} target="_blank" rel="noopener noreferrer" className="underline">
+                            Join Meeting
+                          </a>
+                        </div>
+                      )}
+                      {meeting.meeting_mode === "online" && meeting.meeting_password && (
+                        <div className="flex items-center space-x-1 text-sm text-gray-600">
+                          <Lock className="h-4 w-4" />
+                          <span>Password: {meeting.meeting_password}</span>
+                        </div>
+                      )}
 
                       {meeting.participants && meeting.participants.length > 0 && (
                         <div>
@@ -415,7 +496,7 @@ export default function AdminMeets() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      <div className="flex items-center space-x-4 text-sm">
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
                         <div className="flex items-center space-x-1">
                           <Calendar className="h-4 w-4 text-gray-500" />
                           <span>{new Date(meeting.meeting_date).toLocaleDateString()}</span>
@@ -431,6 +512,29 @@ export default function AdminMeets() {
                           <span>{meeting.participants?.length || 0} participants</span>
                         </div>
                       </div>
+
+                      {/* Display Meeting Mode and Details */}
+                      {meeting.meeting_mode && (
+                        <div className="flex items-center space-x-1 text-sm text-gray-600">
+                          <Badge variant="secondary">
+                            {meeting.meeting_mode === "online" ? "Online" : "In-person"}
+                          </Badge>
+                        </div>
+                      )}
+                      {meeting.meeting_mode === "online" && meeting.meeting_url && (
+                        <div className="flex items-center space-x-1 text-sm text-blue-600">
+                          <Link className="h-4 w-4" />
+                          <a href={meeting.meeting_url} target="_blank" rel="noopener noreferrer" className="underline">
+                            Join Meeting
+                          </a>
+                        </div>
+                      )}
+                      {meeting.meeting_mode === "online" && meeting.meeting_password && (
+                        <div className="flex items-center space-x-1 text-sm text-gray-600">
+                          <Lock className="h-4 w-4" />
+                          <span>Password: {meeting.meeting_password}</span>
+                        </div>
+                      )}
 
                       {meeting.participants && meeting.participants.length > 0 && (
                         <div>

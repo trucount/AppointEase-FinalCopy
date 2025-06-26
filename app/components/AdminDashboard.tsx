@@ -5,9 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Calendar, RefreshCw, TrendingUp, Users, Clock, Video, BarChart3, PieChart } from "lucide-react"
+import { Calendar, RefreshCw, Users, Clock, Video, BarChart3, PieChart } from "lucide-react"
 import { getAppointments, getUsers, getAllMeetings, supabase } from "../../lib/supabase"
 import type { User } from "../../lib/supabase"
+import { useRouter } from "next/navigation" // Import useRouter
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState({
@@ -27,6 +28,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [timeFilter, setTimeFilter] = useState("week")
+  const router = useRouter() // Initialize useRouter
 
   useEffect(() => {
     loadStats()
@@ -358,34 +360,6 @@ export default function AdminDashboard() {
               <div className="text-2xl font-bold text-gray-600">{stats.completedMeetings}</div>
               <div className="text-sm text-gray-700">Completed Meetings</div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Quick Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
-          <CardDescription>Common administrative tasks</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <Button variant="outline" className="h-auto p-4 flex flex-col items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              <span className="text-xs">View Appointments</span>
-            </Button>
-            <Button variant="outline" className="h-auto p-4 flex flex-col items-center gap-2">
-              <Users className="h-5 w-5" />
-              <span className="text-xs">Manage Users</span>
-            </Button>
-            <Button variant="outline" className="h-auto p-4 flex flex-col items-center gap-2">
-              <Video className="h-5 w-5" />
-              <span className="text-xs">Schedule Meeting</span>
-            </Button>
-            <Button variant="outline" className="h-auto p-4 flex flex-col items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
-              <span className="text-xs">View Reports</span>
-            </Button>
           </div>
         </CardContent>
       </Card>

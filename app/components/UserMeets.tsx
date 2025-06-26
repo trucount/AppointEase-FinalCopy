@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Calendar, Clock, Video, User } from "lucide-react"
+import { Calendar, Clock, Video, User, Link, Lock } from "lucide-react"
 import { getMeetingsForUser, supabase } from "../../lib/supabase"
 import type { User as UserType } from "../../lib/supabase"
 
@@ -116,6 +116,27 @@ export default function UserMeets({ user }: UserMeetsProps) {
                         </span>
                       </div>
                     </div>
+
+                    {/* Display Meeting Mode and Details */}
+                    {meeting.meeting_mode && (
+                      <div className="flex items-center space-x-1 text-sm text-gray-600">
+                        <Badge variant="secondary">{meeting.meeting_mode === "online" ? "Online" : "In-person"}</Badge>
+                      </div>
+                    )}
+                    {meeting.meeting_mode === "online" && meeting.meeting_url && (
+                      <div className="flex items-center space-x-1 text-sm text-blue-600">
+                        <Link className="h-4 w-4" />
+                        <a href={meeting.meeting_url} target="_blank" rel="noopener noreferrer" className="underline">
+                          Join Meeting
+                        </a>
+                      </div>
+                    )}
+                    {meeting.meeting_mode === "online" && meeting.meeting_password && (
+                      <div className="flex items-center space-x-1 text-sm text-gray-600">
+                        <Lock className="h-4 w-4" />
+                        <span>Password: {meeting.meeting_password}</span>
+                      </div>
+                    )}
 
                     {meeting.created_by_user_name && (
                       <div className="flex items-center space-x-1 text-sm text-gray-600">
